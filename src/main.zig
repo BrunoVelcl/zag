@@ -42,7 +42,10 @@ pub fn main() !void {
             .q => {
                 args.quiet = .q;
             },
-            .h => {},
+            .h => {
+                args.module_name = .h;
+                args.option = options_hash.get(argv.next().?) orelse .default;
+            },
             else => {
                 return RuntimeError.UnexpectedInputError;
             },
@@ -55,6 +58,23 @@ pub fn main() !void {
     switch (args.module_name) {
         .init, .initexe, .initlib => {
             try zagInit(args);
+        },
+        .h => {
+            switch (args.option) {
+                .default => {
+                    try console_writer.print("No such option:\n\n", .{});
+                    try console_writer.print(str.help, .{});
+                },
+                .init, .initexe => {
+                    try console_writer.print(str.help_init, .{ "init", "executable" });
+                },
+                .initlib => {
+                    try console_writer.print(str.help_init, .{ "initlib", "library" });
+                },
+                else => {
+                    unreachable;
+                },
+            }
         },
         else => {
             try console_writer.print("{s}", .{str.help});
@@ -156,6 +176,7 @@ pub fn zagInit(args: SetUp) !void {
 //Data struct
 const SetUp = struct {
     module_name: opt_flags = .default,
+    option: opt_flags = .default,
     dir_path: []const u8 = undefined,
     project_name: []const u8 = "",
     iter: usize = 1,

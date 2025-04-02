@@ -101,11 +101,24 @@ pub const zon =
 ; // provide name when printing!!!
 
 pub const help =
-    \\Usage: zag tool [options]
+    \\Usage: zag <tool> [arguments]
     \\
     \\Tools:
-    \\  init, initexe   Sets up empty zig template for building executables.
-    \\  initlib         Sets up empty zig template for building libraries.
+    \\  init, initexe   Set up an empty Zig template for building executables.
+    \\  initlib         Set up an empty Zig template for building libraries.
+    \\  time            Measure the execution time of a program.
     \\
-    \\  Options: -n <project_name> Sets up a new folder and files to reflect this.  
+    \\Use 'zag -h <tool>' for tool-specific help.
+    \\
 ;
+
+pub const help_init =
+    \\Usage: zag {s} [name]
+    \\
+    \\Creates a new Zig {s} project.
+    \\
+    \\Behavior:
+    \\  - If no name is provided, the project is initialized in the current directory.
+    \\  - If a name is provided, a new directory with that name is created, and the project is set up inside it.
+    \\
+; //Provide the tool teh user requested and if its a exe or lib
