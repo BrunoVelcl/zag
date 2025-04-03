@@ -12,17 +12,19 @@ pub fn main() !void {
     var argv = try std.process.argsWithAllocator(allocator);
     defer argv.deinit();
 
-    //Make a Hashmap of our options
-    var options_hash = std.StringArrayHashMap(opt_flags).init(allocator);
-    defer options_hash.deinit();
-    try options_hash.put("initlib", .initlib);
-    try options_hash.put("initexe", .initexe);
-    try options_hash.put("init", .init);
-    try options_hash.put("default", .default);
-    try options_hash.put("dir", .dir);
-    try options_hash.put("-i", .i);
-    try options_hash.put("-q", .q);
-    try options_hash.put("-h", .h);
+    //Comptime hashmap for argv parsing
+    var options_hash = std.StaticStringMap(opt_flags).initComptime(
+        .{
+            .{ "initlib", .initlib },
+            .{ "initexe", .initexe },
+            .{ "init", .init },
+            .{ "default", .default },
+            .{ "dir", .dir },
+            .{ "-i", .i },
+            .{ "-q", .q },
+            .{ "-h", .h },
+        },
+    );
 
     //Argv porccessing
     //Extract path and tool(which operation to perform)
