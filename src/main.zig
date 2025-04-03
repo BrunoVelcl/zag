@@ -99,23 +99,18 @@ const opt_flags = enum {
 };
 
 pub fn zagInit(args: SetUp) !void {
-    // Get separator
-    const sep = [_]u8{std.fs.path.sep};
-
     //Get correct root and src dir and create them
     var path = tb.PathWritter{};
 
     path.write(args.dir_path);
 
-    const project_name = if (args.project_name.len != 0) args.project_name else path.returnUntilChar(&sep);
-    path.write(&sep);
+    const project_name = if (args.project_name.len != 0) args.project_name else path.returnUntilSep();
     path.write(project_name);
     std.fs.makeDirAbsolute(path.value()) catch {};
 
     //Create flags for file openings
     const create_flags = std.fs.File.CreateFlags{ .exclusive = true, .truncate = true };
     //Build.zig logic for exe and lib
-    path.write(&sep);
     path.write("build.zig");
     var build_file = try std.fs.createFileAbsolute(path.value(), create_flags);
     defer build_file.close();
@@ -132,8 +127,7 @@ pub fn zagInit(args: SetUp) !void {
             return RuntimeError.UnsuportedArgsError;
         },
     }
-    path.removeUntilChar(&sep);
-    path.write(&sep);
+    path.removeUntilSep();
 
     //Build.zig.zon
     path.write("build.zig.zon");
@@ -141,12 +135,10 @@ pub fn zagInit(args: SetUp) !void {
     defer zon_file.close();
     const zon_writer = zon_file.writer();
     try zon_writer.print(str.zon, .{project_name});
-    path.removeUntilChar(&sep);
-    path.write(&sep);
+    path.removeUntilSep();
 
     path.write("src");
     try std.fs.makeDirAbsolute(path.value());
-    path.write(&sep);
 
     // main and root branch
     switch (args.module_name) {
@@ -156,7 +148,7 @@ pub fn zagInit(args: SetUp) !void {
             defer main_file.close();
             const main_writer = main_file.writer();
             try main_writer.print(str.main_exe, .{});
-            path.removeUntilChar(&sep);
+            path.removeUntilSep();
         },
         .initlib => {
             path.write(project_name);
@@ -165,7 +157,7 @@ pub fn zagInit(args: SetUp) !void {
             defer root_file.close();
             const root_writer = root_file.writer();
             try root_writer.print(str.root_lib, .{});
-            path.removeUntilChar(&sep);
+            path.removeUntilSep();
         },
         else => {
             return RuntimeError.UnsuportedArgsError;
