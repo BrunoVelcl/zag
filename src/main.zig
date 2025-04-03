@@ -45,8 +45,8 @@ pub fn main() !void {
                 args.quiet = .q;
             },
             .h => {
-                args.module_name = .h;
-                args.option = options_hash.get(argv.next().?) orelse .default;
+                args.module_name = hashed_arg;
+                args.option = options_hash.get(argv.next() orelse "default") orelse .default;
             },
             else => {
                 return RuntimeError.UnexpectedInputError;
