@@ -102,16 +102,16 @@ pub fn zagInit(args: SetUp) !void {
     //Get correct root and src dir and create them
     var path = tb.PathWritter{};
 
-    path.write(args.dir_path);
+    try path.write(args.dir_path);
 
     const project_name = if (args.project_name.len != 0) args.project_name else path.returnUntilSep();
-    path.write(project_name);
+    try path.write(project_name);
     std.fs.makeDirAbsolute(path.value()) catch {};
 
     //Create flags for file openings
     const create_flags = std.fs.File.CreateFlags{ .exclusive = true, .truncate = true };
     //Build.zig logic for exe and lib
-    path.write("build.zig");
+    try path.write("build.zig");
     var build_file = try std.fs.createFileAbsolute(path.value(), create_flags);
     defer build_file.close();
     const build_writer = build_file.writer();
@@ -130,20 +130,20 @@ pub fn zagInit(args: SetUp) !void {
     path.removeUntilSep();
 
     //Build.zig.zon
-    path.write("build.zig.zon");
+    try path.write("build.zig.zon");
     const zon_file = try std.fs.createFileAbsolute(path.value(), create_flags);
     defer zon_file.close();
     const zon_writer = zon_file.writer();
     try zon_writer.print(str.zon, .{project_name});
     path.removeUntilSep();
 
-    path.write("src");
+    try path.write("src");
     try std.fs.makeDirAbsolute(path.value());
 
     // main and root branch
     switch (args.module_name) {
         .init, .initexe => {
-            path.write("main.zig");
+            try path.write("main.zig");
             const main_file = try std.fs.createFileAbsolute(path.value(), create_flags);
             defer main_file.close();
             const main_writer = main_file.writer();
@@ -151,8 +151,8 @@ pub fn zagInit(args: SetUp) !void {
             path.removeUntilSep();
         },
         .initlib => {
-            path.write(project_name);
-            path.write(".zig");
+            try path.write(project_name);
+            try path.write(".zig");
             const root_file = try std.fs.createFileAbsolute(path.value(), create_flags);
             defer root_file.close();
             const root_writer = root_file.writer();
