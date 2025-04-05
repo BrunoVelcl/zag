@@ -1,6 +1,32 @@
 const std = @import("std");
 const tb = @import("ToolBox.zig");
 const str = @import("strData.zig");
+
+//Flags for selecting options
+const opt_flags = enum {
+    initlib,
+    initexe,
+    init,
+    time,
+    default,
+    iter,
+    quiet,
+    dir,
+    i,
+    q,
+    h,
+};
+
+//Data struct
+const SetUp = struct {
+    module_name: opt_flags = .default,
+    option: opt_flags = .default,
+    dir_path: []const u8 = undefined,
+    project_name: []const u8 = "",
+    iter: usize = 1,
+    quiet: opt_flags = .default,
+};
+
 pub fn main() !void {
     //Create options container
     var args = SetUp{};
@@ -21,6 +47,7 @@ pub fn main() !void {
             .{ "initlib", .initlib },
             .{ "initexe", .initexe },
             .{ "init", .init },
+            .{ "time", .time },
             .{ "default", .default },
             .{ "dir", .dir },
             .{ "-i", .i },
@@ -93,20 +120,6 @@ pub fn main() !void {
     }
 }
 
-//Flags for selecting options
-const opt_flags = enum {
-    initlib,
-    initexe,
-    init,
-    default,
-    iter,
-    quiet,
-    dir,
-    i,
-    q,
-    h,
-};
-
 pub fn zagInit(args: SetUp, writer: anytype) !void {
     //Get correct root and src dir and create them
     var path = tb.PathWritter{};
@@ -172,21 +185,11 @@ pub fn zagInit(args: SetUp, writer: anytype) !void {
             unreachable;
         },
     }
-    path.removeUntilSep(); // This is now the cwd
+    path.removeUntilSep(); // This is now the projects dir
     try writer.print("Successfully created project in: {s}", .{path.value()});
 }
 
 //pub fn timer(args: SetUp) !void {}
-
-//Data struct
-const SetUp = struct {
-    module_name: opt_flags = .default,
-    option: opt_flags = .default,
-    dir_path: []const u8 = undefined,
-    project_name: []const u8 = "",
-    iter: usize = 1,
-    quiet: opt_flags = .default,
-};
 
 const RuntimeError = error{ ValueError, MissingArgument, MissingIterrator, UnexpectedInputError, UnsuportedArgsError, UnknownError, ToolError };
 
