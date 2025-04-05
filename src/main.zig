@@ -5,6 +5,9 @@ pub fn main() !void {
     //Create options container
     var args = SetUp{};
 
+    //Get writer
+    const console_writer = std.io.getStdOut().writer();
+
     //Setup allocator
     const allocator = std.heap.page_allocator;
 
@@ -28,18 +31,24 @@ pub fn main() !void {
 
     //Argv porccessing
     //Extract path and tool(which operation to perform)
-    const path = argv.next() orelse return RuntimeError.MissingArgument;
-    args.dir_path = tb.strBspaceUntilChar(path, '\\');
+    args.dir_path = argv.next() orelse unreachable;
+
     //Extract options
     while (argv.next()) |arg| {
-        const hashed_arg = options_hash.get(arg) orelse return RuntimeError.UnsuportedArgsError;
+        const hashed_arg = options_hash.get(arg) orelse {
+            try errorHandler(RuntimeError.ToolError, console_writer);
+            return;
+        };
         switch (hashed_arg) {
             .init, .initexe, .initlib => {
                 args.module_name = hashed_arg;
                 args.project_name = argv.next() orelse break;
             },
             .i => {
-                args.iter = try std.fmt.parseInt(usize, argv.next() orelse return RuntimeError.MissingArgument, 10);
+                args.iter = std.fmt.parseInt(usize, argv.next() orelse return errorHandler(RuntimeError.MissingIterrator, console_writer), 10) catch |err| {
+                    try errorHandler(err, console_writer);
+                    return;
+                };
             },
             .q => {
                 args.quiet = .q;
@@ -49,17 +58,17 @@ pub fn main() !void {
                 args.option = options_hash.get(argv.next() orelse "default") orelse .default;
             },
             else => {
-                return RuntimeError.UnexpectedInputError;
+                return errorHandler(RuntimeError.UnexpectedInputError, console_writer);
             },
         }
     }
 
-    //Get writer
-    const console_writer = std.io.getStdOut().writer();
-
     switch (args.module_name) {
         .init, .initexe, .initlib => {
-            try zagInit(args);
+            zagInit(args) catch |err| {
+                try errorHandler(err, console_writer);
+                return;
+            };
         },
         .h => {
             switch (args.option) {
@@ -102,11 +111,11 @@ pub fn zagInit(args: SetUp) !void {
     //Get correct root and src dir and create them
     var path = tb.PathWritter{};
 
-    try path.write(args.dir_path);
-
+    path.write(args.dir_path) catch unreachable;
+    path.removeUntilSep(); //Remove the filename from our path
     const project_name = if (args.project_name.len != 0) args.project_name else path.returnUntilSep();
-    try path.write(project_name);
-    std.fs.makeDirAbsolute(path.value()) catch {};
+    path.write(project_name) catch unreachable;
+    try std.fs.makeDirAbsolute(path.value());
 
     //Create flags for file openings
     const create_flags = std.fs.File.CreateFlags{ .exclusive = true, .truncate = true };
@@ -124,7 +133,7 @@ pub fn zagInit(args: SetUp) !void {
             try build_writer.print(str.build_lib, .{project_name});
         },
         else => {
-            return RuntimeError.UnsuportedArgsError;
+            unreachable;
         },
     }
     path.removeUntilSep();
@@ -160,7 +169,7 @@ pub fn zagInit(args: SetUp) !void {
             path.removeUntilSep();
         },
         else => {
-            return RuntimeError.UnsuportedArgsError;
+            unreachable;
         },
     }
 }
@@ -177,4 +186,49 @@ const SetUp = struct {
     quiet: opt_flags = .default,
 };
 
-const RuntimeError = error{ ValueError, MissingArgument, MissingIterrator, NOTIMPLEMENTEDError, UnexpectedInputError, UnsuportedArgsError, InvalidPath };
+const RuntimeError = error{ ValueError, MissingArgument, MissingIterrator, UnexpectedInputError, UnsuportedArgsError, UnknownError, ToolError };
+
+pub fn errorHandler(err: anyerror, writer: anytype) !void {
+
+    //const allocation_failure = "Error: Failed to write to memory, exiting program.";
+    //const not_int = "Error: entered argument is not a valid integer.";
+    const value = "Error: Invalid input value.";
+    const margument = "Error: Missing argument after option, use -h for help.";
+    const miter = "Error: Missing iterator value.";
+    const unexpected = "Error: Unexpected user input, use -h for help.";
+    const unsupported = "Error: Unsupported tool entered, use -h for help.";
+    const unknown = "Error: An unknown error occurred.";
+    const mkdir = "Error: Directory creation failed. Check that it dosen't already exist.";
+    const tool = "Error: Tool dosen't exist, use -h for help.";
+    const not_int = "Error: Value provided after -i is not a valid integer.";
+
+    switch (err) {
+        error.ValueError => {
+            try writer.print(value, .{});
+        },
+        error.MissingArgument => {
+            try writer.print(margument, .{});
+        },
+        error.MissingIterrator => {
+            try writer.print(miter, .{});
+        },
+        error.UnexpectedInputError => {
+            try writer.print(unexpected, .{});
+        },
+        error.UnsuportedArgsError => {
+            try writer.print(unsupported, .{});
+        },
+        error.PathAlreadyExists => {
+            try writer.print(mkdir, .{});
+        },
+        error.InvalidCharacter => {
+            try writer.print(not_int, .{});
+        },
+        error.ToolError => {
+            try writer.print(tool, .{});
+        },
+        else => {
+            try writer.print(unknown, .{});
+        },
+    }
+}
