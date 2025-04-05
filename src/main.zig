@@ -58,14 +58,14 @@ pub fn main() !void {
                 args.option = options_hash.get(argv.next() orelse "default") orelse .default;
             },
             else => {
-                return errorHandler(RuntimeError.UnexpectedInputError, console_writer);
+                unreachable;
             },
         }
     }
 
     switch (args.module_name) {
         .init, .initexe, .initlib => {
-            zagInit(args) catch |err| {
+            zagInit(args, console_writer) catch |err| {
                 try errorHandler(err, console_writer);
                 return;
             };
@@ -107,7 +107,7 @@ const opt_flags = enum {
     h,
 };
 
-pub fn zagInit(args: SetUp) !void {
+pub fn zagInit(args: SetUp, writer: anytype) !void {
     //Get correct root and src dir and create them
     var path = tb.PathWritter{};
 
@@ -172,6 +172,8 @@ pub fn zagInit(args: SetUp) !void {
             unreachable;
         },
     }
+    path.removeUntilSep(); // This is now the cwd
+    try writer.print("Successfully created project in: {s}", .{path.value()});
 }
 
 //pub fn timer(args: SetUp) !void {}
