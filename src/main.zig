@@ -174,7 +174,8 @@ pub fn zagInit(args: SetUp, writer: anytype) !void {
         },
         .initlib => {
             try path.write(project_name);
-            try path.write(".zig");
+            try path.writeNoSep(".zig");
+            //try path.write(".zig");
             const root_file = try std.fs.createFileAbsolute(path.value(), create_flags);
             defer root_file.close();
             const root_writer = root_file.writer();
