@@ -102,7 +102,7 @@ pub fn main() !void {
             };
         },
         .time => {
-            try timer(args, console_writer);
+            try timer(args, console_writer, allocator);
             //timer(args, console_writer) catch |err| {
             //    try errorHandler(err, console_writer);
             //    return;
@@ -200,7 +200,8 @@ pub fn zagInit(args: SetUp, writer: anytype) !void {
     try writer.print("Successfully created project in: {s}", .{path.value()});
 }
 
-pub fn timer(args: SetUp, writer: anytype) !void {
+// Memory is freed inside this function
+pub fn timer(args: SetUp, writer: anytype, allocator: std.mem.Allocator) !void {
     //Return if no program entered
     if (args.project_name.len == 0) {
         try errorHandler(RuntimeError.MissingArgument, writer);
@@ -222,16 +223,17 @@ pub fn timer(args: SetUp, writer: anytype) !void {
     //ProccessInfo
     var process_info: win.PROCESS_INFORMATION = std.mem.zeroes(win.PROCESS_INFORMATION);
 
-    const allocator = std.heap.page_allocator;
-    const lpswtr = try stringToLPSWTR(args.project_name, allocator);
+    const lpswtr = try std.unicode.utf8ToUtf16LeAllocZ(allocator, args.project_name);
     defer allocator.free(lpswtr);
+    //const lpswtr = try stringToLPSWTR(args.project_name, allocator);
+    //defer allocator.free(lpswtr);
 
     var i = args.iter;
     while (i > 0) : (i -= 1) {
         //Zero proccessinfo on every iteration
         process_info = std.mem.zeroes(win.PROCESS_INFORMATION);
         start = std.os.windows.QueryPerformanceCounter();
-        try std.os.windows.CreateProcessW(null, @ptrCast(lpswtr), null, null, 0, creation_flags, null, null, &start_up_info, &process_info);
+        try std.os.windows.CreateProcessW(null, lpswtr, null, null, 0, creation_flags, null, null, &start_up_info, &process_info);
         try win.WaitForSingleObject(process_info.hProcess, win.INFINITE);
         end = std.os.windows.QueryPerformanceCounter();
         accumulator += end - start;
