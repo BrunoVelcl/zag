@@ -1,7 +1,7 @@
 const std = @import("std");
 const tb = @import("ToolBox.zig");
 const str = @import("strData.zig");
-
+const win = std.os.windows;
 //Flags for selecting options
 const opt_flags = enum {
     initlib,
@@ -48,6 +48,7 @@ pub fn main() !void {
             .{ "initexe", .initexe },
             .{ "init", .init },
             .{ "time", .time },
+            .{ "timer", .time },
             .{ "default", .default },
             .{ "dir", .dir },
             .{ "-i", .i },
@@ -71,6 +72,10 @@ pub fn main() !void {
                 args.module_name = hashed_arg;
                 args.project_name = argv.next() orelse break;
             },
+            .time => {
+                args.module_name = hashed_arg;
+                args.project_name = argv.next() orelse break;
+            },
             .i => {
                 args.iter = std.fmt.parseInt(usize, argv.next() orelse return errorHandler(RuntimeError.MissingIterrator, console_writer), 10) catch |err| {
                     try errorHandler(err, console_writer);
@@ -89,13 +94,19 @@ pub fn main() !void {
             },
         }
     }
-
     switch (args.module_name) {
         .init, .initexe, .initlib => {
             zagInit(args, console_writer) catch |err| {
                 try errorHandler(err, console_writer);
                 return;
             };
+        },
+        .time => {
+            try timer(args, console_writer);
+            //timer(args, console_writer) catch |err| {
+            //    try errorHandler(err, console_writer);
+            //    return;
+            //};
         },
         .h => {
             switch (args.option) {
@@ -175,7 +186,6 @@ pub fn zagInit(args: SetUp, writer: anytype) !void {
         .initlib => {
             try path.write(project_name);
             try path.writeNoSep(".zig");
-            //try path.write(".zig");
             const root_file = try std.fs.createFileAbsolute(path.value(), create_flags);
             defer root_file.close();
             const root_writer = root_file.writer();
@@ -190,7 +200,45 @@ pub fn zagInit(args: SetUp, writer: anytype) !void {
     try writer.print("Successfully created project in: {s}", .{path.value()});
 }
 
-//pub fn timer(args: SetUp) !void {}
+pub fn timer(args: SetUp, writer: anytype) !void {
+    //Return if no program entered
+    if (args.project_name.len == 0) {
+        try errorHandler(RuntimeError.MissingArgument, writer);
+        return;
+    }
+    //Get frequency // declare start end variables
+    const freq = win.QueryPerformanceFrequency();
+    var start: u64 = undefined;
+    var end: u64 = undefined;
+    var accumulator: u64 = 0;
+    //Set window to show or hide
+    const creation_flags: u32 = if (args.quiet == .default) 0 else 0x00000010;
+    //StartupInfo
+    //const start_up_info = std.os.windows.STARTUPINFOW{ .cb = @sizeOf(std.os.windows.STARTUPINFOW), .dwFlags = std.os.windows.STARTF_USESHOWWINDOW, .wShowWindow = 0 };
+    var start_up_info: win.STARTUPINFOW = std.mem.zeroes(win.STARTUPINFOW);
+    start_up_info.cb = @sizeOf(win.STARTUPINFOW);
+    start_up_info.dwFlags = win.STARTF_USESHOWWINDOW;
+    start_up_info.wShowWindow = 0;
+    //ProccessInfo
+    var process_info: win.PROCESS_INFORMATION = std.mem.zeroes(win.PROCESS_INFORMATION);
+
+    const allocator = std.heap.page_allocator;
+    const lpswtr = try stringToLPSWTR(args.project_name, allocator);
+    defer allocator.free(lpswtr);
+
+    var i = args.iter;
+    while (i > 0) : (i -= 1) {
+        //Zero proccessinfo on every iteration
+        process_info = std.mem.zeroes(win.PROCESS_INFORMATION);
+        start = std.os.windows.QueryPerformanceCounter();
+        try std.os.windows.CreateProcessW(null, @ptrCast(lpswtr), null, null, 0, creation_flags, null, null, &start_up_info, &process_info);
+        try win.WaitForSingleObject(process_info.hProcess, win.INFINITE);
+        end = std.os.windows.QueryPerformanceCounter();
+        accumulator += end - start;
+    }
+    const result: f128 = (@as(f64, @floatFromInt(accumulator)) / @as(f64, @floatFromInt(args.iter))) / @as(f64, @floatFromInt(freq)) * 1000;
+    try writer.print("\nResult: {d}\n", .{result});
+}
 
 const RuntimeError = error{ ValueError, MissingArgument, MissingIterrator, UnexpectedInputError, UnsuportedArgsError, UnknownError, ToolError };
 
@@ -237,4 +285,14 @@ pub fn errorHandler(err: anyerror, writer: anytype) !void {
             try writer.print(unknown, .{});
         },
     }
+}
+
+//EXPERIMENTAL AREA
+pub fn stringToLPSWTR(stringz: []const u8, allocator: std.mem.Allocator) ![]u16 {
+    const long = try allocator.alloc(u16, stringz.len + 1);
+    for (stringz, 0..) |char, i| {
+        long[i] = @intCast(char);
+    }
+    long[long.len - 1] = 0;
+    return long;
 }
