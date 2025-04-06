@@ -12,9 +12,9 @@ const opt_flags = enum {
     iter,
     quiet,
     dir,
+    h,
     i,
     q,
-    h,
 };
 
 //Data struct
@@ -49,13 +49,14 @@ pub fn main() !void {
             .{ "init", .init },
             .{ "time", .time },
             .{ "timer", .time },
-            .{ "default", .default },
-            .{ "dir", .dir },
-            .{ "-i", .i },
-            .{ "-q", .q },
             .{ "-h", .h },
         },
     );
+
+    var timer_hash = std.StaticStringMap(opt_flags).initComptime(.{
+        .{ "-i", .i },
+        .{ "-q", .q },
+    });
 
     //Argv porccessing
     //Extract path and tool(which operation to perform)
@@ -74,16 +75,30 @@ pub fn main() !void {
             },
             .time => {
                 args.module_name = hashed_arg;
-                args.project_name = argv.next() orelse break;
-            },
-            .i => {
-                args.iter = std.fmt.parseInt(usize, argv.next() orelse return errorHandler(RuntimeError.MissingIterrator, console_writer), 10) catch |err| {
-                    try errorHandler(err, console_writer);
-                    return;
-                };
-            },
-            .q => {
-                args.quiet = .q;
+                while (argv.next()) |time_arg| {
+                    const time_options_hash = timer_hash.get(time_arg) orelse .default;
+                    switch (time_options_hash) {
+                        .i => {
+                            args.iter = std.fmt.parseInt(usize, argv.next() orelse return errorHandler(RuntimeError.MissingIterrator, console_writer), 10) catch |err| {
+                                try errorHandler(err, console_writer);
+                                return;
+                            };
+                        },
+                        .q => {
+                            args.quiet = .q;
+                        },
+                        .default => {
+                            if (args.project_name.len == 0) {
+                                args.project_name = time_arg;
+                            } else {
+                                try errorHandler(RuntimeError.UnexpectedInputError, console_writer);
+                            }
+                        },
+                        else => {
+                            unreachable;
+                        },
+                    }
+                }
             },
             .h => {
                 args.module_name = hashed_arg;
@@ -225,8 +240,6 @@ pub fn timer(args: SetUp, writer: anytype, allocator: std.mem.Allocator) !void {
 
     const lpswtr = try std.unicode.utf8ToUtf16LeAllocZ(allocator, args.project_name);
     defer allocator.free(lpswtr);
-    //const lpswtr = try stringToLPSWTR(args.project_name, allocator);
-    //defer allocator.free(lpswtr);
 
     var i = args.iter;
     while (i > 0) : (i -= 1) {
@@ -242,7 +255,7 @@ pub fn timer(args: SetUp, writer: anytype, allocator: std.mem.Allocator) !void {
     try writer.print("\nResult: {d}\n", .{result});
 }
 
-const RuntimeError = error{ ValueError, MissingArgument, MissingIterrator, UnexpectedInputError, UnsuportedArgsError, UnknownError, ToolError };
+const RuntimeError = error{ ValueError, MissingArgument, MissingIterrator, UnexpectedInputError, UnsuportedArgsError, UnknownError, ToolError, OptionError };
 
 pub fn errorHandler(err: anyerror, writer: anytype) !void {
 
@@ -257,6 +270,7 @@ pub fn errorHandler(err: anyerror, writer: anytype) !void {
     const mkdir = "Error: Directory creation failed. Check that it dosen't already exist.";
     const tool = "Error: Tool dosen't exist, use -h for help.";
     const not_int = "Error: Value provided after -i is not a valid integer.";
+    const option = "Error: Option does not exist, use -h for help.";
 
     switch (err) {
         error.ValueError => {
@@ -283,18 +297,11 @@ pub fn errorHandler(err: anyerror, writer: anytype) !void {
         error.ToolError => {
             try writer.print(tool, .{});
         },
+        error.OptionError => {
+            try writer.print(option, .{});
+        },
         else => {
             try writer.print(unknown, .{});
         },
     }
-}
-
-//EXPERIMENTAL AREA
-pub fn stringToLPSWTR(stringz: []const u8, allocator: std.mem.Allocator) ![]u16 {
-    const long = try allocator.alloc(u16, stringz.len + 1);
-    for (stringz, 0..) |char, i| {
-        long[i] = @intCast(char);
-    }
-    long[long.len - 1] = 0;
-    return long;
 }
