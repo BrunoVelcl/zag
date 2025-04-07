@@ -28,6 +28,51 @@ const SetUp = struct {
     quiet: opt_flags = .default,
 };
 
+const Benchmark = struct {
+    freq: f64 = undefined,
+    result: u64 = undefined,
+    start: u64 = undefined,
+    end: u64 = undefined,
+    accumulator: u64 = 0,
+    worst: usize = 0,
+    best: usize = 0xFFFFFFFFFFFFFFFF,
+    peak_mem: usize = undefined,
+    counter: usize = 0,
+
+    pub fn startTimer(self: *Benchmark) void {
+        self.start = win.QueryPerformanceCounter();
+    }
+
+    pub fn endTimer(self: *Benchmark) void {
+        self.end = win.QueryPerformanceCounter();
+        self.result = self.end - self.start;
+        self.accumulator += self.result;
+        if (self.result < self.best) self.best = self.result;
+        if (self.result > self.worst) self.worst = self.result;
+        self.counter += 1;
+    }
+
+    pub fn storeIfMaxMem(self: *Benchmark, mem: usize) void {
+        if (self.peak_mem < mem) self.peak_mem = mem;
+    }
+
+    pub fn getResult(self: *Benchmark) f64 {
+        return (@as(f64, @floatFromInt(self.result)) / self.freq);
+    }
+
+    pub fn getBest(self: *Benchmark) f64 {
+        return (@as(f64, @floatFromInt(self.best)) / self.freq);
+    }
+
+    pub fn getWorst(self: *Benchmark) f64 {
+        return (@as(f64, @floatFromInt(self.worst)) / self.freq);
+    }
+
+    pub fn getAverage(self: *Benchmark) f64 {
+        return ((@as(f64, @floatFromInt(self.accumulator)) / @as(f64, @floatFromInt(self.counter))) / self.freq);
+    }
+};
+
 pub fn main() !void {
 
     //Setup allocator
@@ -220,39 +265,101 @@ pub fn zagInit(args: SetUp, writer: anytype) !void {
     try writer.print("Successfully created project in: {s}", .{path.value()});
 }
 
-// Memory is freed inside this function
 pub fn timer(args: SetUp, writer: anytype) !void {
-    //Get frequency // declare start end variables
-    const freq = win.QueryPerformanceFrequency();
-    var start: u64 = undefined;
-    var end: u64 = undefined;
-    var accumulator: u64 = 0;
-    //Set window to show or hide
-    const creation_flags: u32 = if (args.quiet == .default) 0 else 0x00000010;
+    //Create a struct for recording data
+    var data = Benchmark{};
+    data.freq = @floatFromInt(win.QueryPerformanceFrequency());
     //StartupInfo
-    //const start_up_info = std.os.windows.STARTUPINFOW{ .cb = @sizeOf(std.os.windows.STARTUPINFOW), .dwFlags = std.os.windows.STARTF_USESHOWWINDOW, .wShowWindow = 0 };
     var start_up_info: win.STARTUPINFOW = std.mem.zeroes(win.STARTUPINFOW);
     start_up_info.cb = @sizeOf(win.STARTUPINFOW);
     start_up_info.dwFlags = win.STARTF_USESHOWWINDOW;
     start_up_info.wShowWindow = 0;
     //ProccessInfo
     var process_info: win.PROCESS_INFORMATION = std.mem.zeroes(win.PROCESS_INFORMATION);
+    //Set window to show or hide
+    const creation_flags: u32 = if (args.quiet == .default) 0 else 0x00000010;
+    if (args.quiet == .q) {
+        try writer.print("\nTesting: ", .{});
+    }
 
-    //const lpswtr = try std.unicode.utf8ToUtf16LeAllocZ(allocator, args.project_name);
-    //defer allocator.free(lpswtr);
+    //*******************************************ProgresBar setup
+    const max: f64 = @floatFromInt(args.iter);
+    var acc: f64 = 0;
+    const one_whole: f64 = 100;
+    var step: f64 = undefined;
+    var row_cnt: f64 = 1;
+    if (args.quiet == .q) {
+        try writer.print("0% ---------------------------------------------------------------------------------------------------- 100%", .{});
+        try writer.print("\x1b[105D", .{});
+        if (max < one_whole) {
+            step = max / one_whole;
+        } else {
+            step = one_whole / max;
+            row_cnt = 0;
+        }
+    }
+    //*******************************************
 
-    var i = args.iter;
-    while (i > 0) : (i -= 1) {
+    //Main Loop
+    var i: u64 = 0;
+    while (i < args.iter) : (i += 1) {
         //Zero proccessinfo on every iteration
         process_info = std.mem.zeroes(win.PROCESS_INFORMATION);
-        start = std.os.windows.QueryPerformanceCounter();
+        data.startTimer();
         try std.os.windows.CreateProcessW(null, @ptrCast(args.utf16), null, null, 0, creation_flags, null, null, &start_up_info, &process_info);
         try win.WaitForSingleObject(process_info.hProcess, win.INFINITE);
-        end = std.os.windows.QueryPerformanceCounter();
-        accumulator += end - start;
+        data.endTimer();
+        const memory_info = try win.GetProcessMemoryInfo(process_info.hProcess);
+        data.storeIfMaxMem(memory_info.PeakWorkingSetSize);
+        //*******************************************Progressbar update
+        if (args.quiet == .q) {
+            if (max >= one_whole and acc >= row_cnt) {
+                try writer.print(">", .{});
+                acc += step;
+                row_cnt += 1;
+            } else if (max >= one_whole) {
+                acc += step;
+            } else if (max < one_whole) {
+                while (acc < row_cnt) : (acc += step) {
+                    try writer.print(">", .{});
+                }
+                row_cnt += 1;
+            }
+        }
+        //*******************************************
+
     }
-    const result: f128 = (@as(f64, @floatFromInt(accumulator)) / @as(f64, @floatFromInt(args.iter))) / @as(f64, @floatFromInt(freq)) * 1000;
-    try writer.print("\nResult: {d}\n", .{result});
+    try BenchmarkParser(&data, writer);
+    // try writer.print("\nAvg: {d:0>.3}  ||  Best: {d:0>.3}  ||  Worst: {d:0>.3}", .{ data.getAverage(), data.getBest(), data.getWorst() });
+}
+
+pub fn BenchmarkParser(bench_data: *Benchmark, writer: anytype) !void {
+    const avg_flag = timeConverter(bench_data.getAverage());
+
+    const time_index: []const u8 = switch (avg_flag.y) {
+        0 => "ms",
+        1 => "sec",
+        2 => "min",
+        else => unreachable,
+    };
+
+    if (bench_data.counter == 1) {
+        try writer.print("\nResult: {d:0>.3}{s}  ||  MaxMemoryUsage: {d:0>.3}MB", .{ avg_flag.x, time_index, bytesToMB(bench_data.peak_mem) });
+    }
+}
+
+pub fn timeConverter(time: f64) struct { x: f64, y: u2 } {
+    const ms_conv: f64 = 1000;
+    const mn_conv: f64 = 60;
+    if (time < 1) {
+        return .{ .x = time * ms_conv, .y = 0b00 };
+    } else if (time > mn_conv) {
+        return .{ .x = time / mn_conv, .y = 0b01 };
+    } else return .{ .x = time, .y = 0b10 };
+}
+
+pub fn bytesToMB(bytes: usize) f64 {
+    return @as(f64, @floatFromInt(bytes)) / 838860800;
 }
 
 const RuntimeError = error{ ValueError, MissingArgument, MissingIterrator, UnexpectedInputError, UnsuportedArgsError, UnknownError, ToolError, OptionError };
