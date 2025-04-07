@@ -23,19 +23,22 @@ const SetUp = struct {
     option: opt_flags = .default,
     dir_path: []const u8 = undefined,
     project_name: []const u8 = "",
+    utf16: []u16 = undefined,
     iter: usize = 1,
     quiet: opt_flags = .default,
 };
 
 pub fn main() !void {
-    //Create options container
-    var args = SetUp{};
-
-    //Get writer
-    const console_writer = std.io.getStdOut().writer();
 
     //Setup allocator
     const allocator = std.heap.page_allocator;
+
+    //Create options container
+    var args = SetUp{};
+    defer allocator.free(args.utf16); //This is freed here since it needs to have mains scope
+
+    //Get writer
+    const console_writer = std.io.getStdOut().writer();
 
     //Get argv iterator
     var argv = try std.process.argsWithAllocator(allocator);
@@ -88,10 +91,12 @@ pub fn main() !void {
                             args.quiet = .q;
                         },
                         .default => {
-                            if (args.project_name.len == 0) {
-                                args.project_name = time_arg;
-                            } else {
-                                try errorHandler(RuntimeError.UnexpectedInputError, console_writer);
+                            args.utf16 = tb.gatherArgvToUTF16(&argv, allocator, time_arg) catch |err| {
+                                try errorHandler(err, console_writer);
+                                return;
+                            };
+                            if (args.utf16.len == 0) {
+                                try errorHandler(RuntimeError.MissingArgument, console_writer);
                             }
                         },
                         else => {
@@ -117,7 +122,7 @@ pub fn main() !void {
             };
         },
         .time => {
-            try timer(args, console_writer, allocator);
+            try timer(args, console_writer);
             //timer(args, console_writer) catch |err| {
             //    try errorHandler(err, console_writer);
             //    return;
@@ -216,12 +221,7 @@ pub fn zagInit(args: SetUp, writer: anytype) !void {
 }
 
 // Memory is freed inside this function
-pub fn timer(args: SetUp, writer: anytype, allocator: std.mem.Allocator) !void {
-    //Return if no program entered
-    if (args.project_name.len == 0) {
-        try errorHandler(RuntimeError.MissingArgument, writer);
-        return;
-    }
+pub fn timer(args: SetUp, writer: anytype) !void {
     //Get frequency // declare start end variables
     const freq = win.QueryPerformanceFrequency();
     var start: u64 = undefined;
@@ -238,15 +238,15 @@ pub fn timer(args: SetUp, writer: anytype, allocator: std.mem.Allocator) !void {
     //ProccessInfo
     var process_info: win.PROCESS_INFORMATION = std.mem.zeroes(win.PROCESS_INFORMATION);
 
-    const lpswtr = try std.unicode.utf8ToUtf16LeAllocZ(allocator, args.project_name);
-    defer allocator.free(lpswtr);
+    //const lpswtr = try std.unicode.utf8ToUtf16LeAllocZ(allocator, args.project_name);
+    //defer allocator.free(lpswtr);
 
     var i = args.iter;
     while (i > 0) : (i -= 1) {
         //Zero proccessinfo on every iteration
         process_info = std.mem.zeroes(win.PROCESS_INFORMATION);
         start = std.os.windows.QueryPerformanceCounter();
-        try std.os.windows.CreateProcessW(null, lpswtr, null, null, 0, creation_flags, null, null, &start_up_info, &process_info);
+        try std.os.windows.CreateProcessW(null, @ptrCast(args.utf16), null, null, 0, creation_flags, null, null, &start_up_info, &process_info);
         try win.WaitForSingleObject(process_info.hProcess, win.INFINITE);
         end = std.os.windows.QueryPerformanceCounter();
         accumulator += end - start;
