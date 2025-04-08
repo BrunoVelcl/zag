@@ -35,7 +35,7 @@ pub const Benchmark = struct {
     accumulator: u64 = 0,
     worst: usize = 0,
     best: usize = 0xFFFFFFFFFFFFFFFF,
-    peak_mem: usize = undefined,
+    peak_mem: usize = 0,
     counter: usize = 0,
 
     pub fn startTimer(self: *Benchmark) void {
