@@ -65,8 +65,8 @@ pub fn main() !void {
                     const time_options_hash = timer_hash.get(time_arg) orelse .default;
                     switch (time_options_hash) {
                         .i => {
-                            args.iter = std.fmt.parseInt(usize, argv.next() orelse return errorHandler(RuntimeError.MissingIterrator, console_writer), 10) catch |err| {
-                                try errorHandler(err, console_writer);
+                            args.iter = std.fmt.parseInt(usize, argv.next() orelse return errorHandler(RuntimeError.MissingIterrator, console_writer), 10) catch {
+                                try errorHandler(RuntimeError.LowIterator, console_writer);
                                 return;
                             };
                         },
@@ -74,13 +74,11 @@ pub fn main() !void {
                             args.quiet = .q;
                         },
                         .default => {
+                            args.project_name = time_arg;
                             args.utf16 = tb.gatherArgvToUTF16(&argv, allocator, time_arg) catch |err| {
                                 try errorHandler(err, console_writer);
                                 return;
                             };
-                            if (args.utf16.len == 0) {
-                                try errorHandler(RuntimeError.MissingArgument, console_writer);
-                            }
                         },
                         else => {
                             unreachable;
@@ -105,6 +103,10 @@ pub fn main() !void {
             };
         },
         .time => {
+            if (args.utf16.len == 0) {
+                try errorHandler(RuntimeError.UnexpectedInputError, console_writer);
+                return;
+            }
             timer(args, console_writer) catch |err| {
                 try errorHandler(err, console_writer);
                 return;

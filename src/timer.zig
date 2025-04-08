@@ -5,10 +5,15 @@ const win = std.os.windows;
 const Benchmark = @import("types.zig").Benchmark;
 const SetUp = @import("types.zig").SetUp;
 const opt_flags = @import("types.zig").opt_flags;
+const RuntimeError = @import("helpers.zig").RuntimeError;
 pub extern "kernel32" fn SetConsoleMode(Handle: win.HANDLE, Mode: win.DWORD) callconv(win.WINAPI) win.BOOL;
 pub extern "kernel32" fn GetConsoleMode(Handle: win.HANDLE, lpMode: *win.DWORD) callconv(win.WINAPI) win.BOOL;
 
 pub fn timer(args: SetUp, writer: anytype) !void {
+    if (args.iter < 1) {
+        return RuntimeError.LowIterator;
+    }
+
     //Create a struct for recording data
     var data = Benchmark{};
     data.freq = @floatFromInt(win.QueryPerformanceFrequency());
@@ -30,17 +35,6 @@ pub fn timer(args: SetUp, writer: anytype) !void {
     var row_cnt: f64 = 1;
 
     var progressB = ProggressBar{};
-    if (args.quiet == .q and args.iter > 1) {
-        try progressB.init(writer);
-        //try writer.print("0% ---------------------------------------------------------------------------------------------------- 100%\r", .{});
-        //try writer.print("\x1b[105D", .{});
-        if (max < one_whole) {
-            step = max / one_whole;
-        } else {
-            step = one_whole / max;
-            row_cnt = 0;
-        }
-    }
 
     //*******************************************
 
@@ -58,6 +52,16 @@ pub fn timer(args: SetUp, writer: anytype) !void {
         const memory_info = try win.GetProcessMemoryInfo(process_info.hProcess);
         data.storeIfMaxMem(memory_info.PeakWorkingSetSize);
         //Progressbar update*******************************************
+        if (args.quiet == .q and args.iter > 1 and i == 0) {
+            try progressB.init(writer);
+            if (max < one_whole) {
+                step = max / one_whole;
+            } else {
+                step = one_whole / max;
+                row_cnt = 0;
+            }
+        }
+
         if (args.quiet == .q and args.iter > 1) {
             if (max >= one_whole and acc >= row_cnt) {
                 try progressB.update(writer);

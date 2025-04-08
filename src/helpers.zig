@@ -1,4 +1,4 @@
-pub const RuntimeError = error{ ValueError, MissingArgument, MissingIterrator, UnexpectedInputError, UnsuportedArgsError, UnknownError, ToolError, OptionError };
+pub const RuntimeError = error{ ValueError, MissingArgument, MissingIterrator, UnexpectedInputError, UnsuportedArgsError, UnknownError, ToolError, OptionError, LowIterator };
 
 pub fn errorHandler(err: anyerror, writer: anytype) !void {
 
@@ -14,6 +14,8 @@ pub fn errorHandler(err: anyerror, writer: anytype) !void {
     const tool = "Error: Tool dosen't exist, use -h for help.";
     const not_int = "Error: Value provided after -i is not a valid integer.";
     const option = "Error: Option does not exist, use -h for help.";
+    const file = "Error: Program/File not found. Check if it exists or if you misspelled it.";
+    const iter_below_1 = "Error: Iterator value (-i) can't be less than 1.";
 
     switch (err) {
         error.ValueError => {
@@ -42,6 +44,12 @@ pub fn errorHandler(err: anyerror, writer: anytype) !void {
         },
         error.OptionError => {
             try writer.print(option, .{});
+        },
+        error.FileNotFound => {
+            try writer.print(file, .{});
+        },
+        error.LowIterator, error.OverflowError, error.ParseIntError => {
+            try writer.print(iter_below_1, .{});
         },
         else => {
             try writer.print(unknown, .{});
