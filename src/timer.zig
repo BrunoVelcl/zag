@@ -6,6 +6,7 @@ const Benchmark = @import("types.zig").Benchmark;
 const SetUp = @import("types.zig").SetUp;
 const opt_flags = @import("types.zig").opt_flags;
 pub extern "kernel32" fn SetConsoleMode(Handle: win.HANDLE, Mode: win.DWORD) callconv(win.WINAPI) win.BOOL;
+pub extern "kernel32" fn GetConsoleMode(Handle: win.HANDLE, lpMode: *win.DWORD) callconv(win.WINAPI) win.BOOL;
 
 pub fn timer(args: SetUp, writer: anytype) !void {
     //Create a struct for recording data
@@ -60,7 +61,6 @@ pub fn timer(args: SetUp, writer: anytype) !void {
         if (args.quiet == .q and args.iter > 1) {
             if (max >= one_whole and acc >= row_cnt) {
                 try progressB.update(writer);
-                //try writer.print(">", .{});
                 acc += step;
                 row_cnt += 1;
             } else if (max >= one_whole) {
@@ -68,16 +68,14 @@ pub fn timer(args: SetUp, writer: anytype) !void {
             } else if (max < one_whole) {
                 while (acc < row_cnt) : (acc += step) {
                     try progressB.update(writer);
-                    //try writer.print(">", .{});
                 }
-                //std.debug.print("acc = {d}", .{acc});
                 row_cnt += 1;
             }
         }
         //*******************************************
 
     }
-    //try progressB.deinit(writer);
+    try progressB.deinit(writer);
     try BenchmarkParser(&data, writer);
 }
 
@@ -94,7 +92,7 @@ pub fn BenchmarkParser(bench_data: *Benchmark, writer: anytype) !void {
     if (bench_data.counter == 1) {
         try writer.print("Result: {d:0>.3} {s}  ||  MaxMemoryUsage: {d:0>.3} MB\n\n", .{ avg_flag.time, time_index, bytesToMB(bench_data.peak_mem) });
     } else {
-        try writer.print("\nAvg: {d:0>.3} {s}  ||  Best: {d:0>.3} {s} ||  Worst: {d:0>.3} {s}  ||  MaxMemoryUsage: {d:0>.3} MB\n\n", .{ avg_flag.time, time_index, timeConverter(bench_data.getBest()).time, time_index, timeConverter(bench_data.getWorst()).time, time_index, bytesToMB(bench_data.peak_mem) });
+        try writer.print("Avg: {d:0>.3} {s}  ||  Best: {d:0>.3} {s} ||  Worst: {d:0>.3} {s}  ||  MaxMemoryUsage: {d:0>.3} MB\n\n", .{ avg_flag.time, time_index, timeConverter(bench_data.getBest()).time, time_index, timeConverter(bench_data.getWorst()).time, time_index, bytesToMB(bench_data.peak_mem) });
     }
 }
 
@@ -113,30 +111,32 @@ pub fn bytesToMB(bytes: usize) f64 {
 }
 
 pub const ProggressBar = struct {
-    base: []const u8 = "Testing: 0% --------------------------------------------------------------------------------------------------- 100%",
-    fill: []const u8 = "Testing: 0% >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 100%",
-    offset: u8 = 12,
-    cnt: u8 = 0,
+    base: []const u8 = "Testing: 0%   ---------------------------------------------------------------------------------------------------   100%",
+    offset: u8 = 13,
     handle: *anyopaque = undefined,
+    live: u1 = 0,
 
     pub fn init(self: *ProggressBar, writer: anytype) !void {
         self.handle = try win.GetStdHandle(win.STD_OUTPUT_HANDLE);
-        //_ = SetConsoleMode(self.handle, win.ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-        //try writer.print("\x1B[?25l", .{}); //Hides cursor
+        var mode: win.DWORD = 0;
+        _ = GetConsoleMode(self.handle, &mode);
+        _ = SetConsoleMode(self.handle, mode | win.ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        try writer.print("\x1b[?25l", .{}); //Hides cursor
         try writer.print("{s}", .{self.base});
+        try writer.print("\x1b[{d}D", .{self.base.len - self.offset});
+        _ = try win.SetConsoleTextAttribute(self.handle, win.FOREGROUND_GREEN);
+        self.live = 1;
     }
 
-    pub fn update(self: *ProggressBar, writer: anytype) !void {
-        try writer.print("\r{s}", .{self.fill[0..self.offset]});
-        _ = try win.SetConsoleTextAttribute(self.handle, win.FOREGROUND_GREEN);
-        try writer.print("{s}", .{self.fill[self.offset .. self.offset + self.cnt]});
-        _ = try win.SetConsoleTextAttribute(self.handle, win.FOREGROUND_BLUE | win.FOREGROUND_GREEN | win.FOREGROUND_RED);
-        self.cnt += 1;
-        if (self.cnt > 100) self.cnt = 0;
+    pub fn update(self: ProggressBar, writer: anytype) !void {
+        _ = self;
+        try writer.print(">", .{});
     }
 
     pub fn deinit(self: ProggressBar, writer: anytype) !void {
-        _ = self;
-        try writer.print("\x1B[?25h", .{});
+        if (self.live == 0) return;
+        try writer.print("\x1b[2K\x1b[{d}DTESTING COMPLETE\n", .{self.base.len / 2 + 8});
+        _ = try win.SetConsoleTextAttribute(self.handle, win.FOREGROUND_BLUE | win.FOREGROUND_GREEN | win.FOREGROUND_RED);
+        try writer.print("\x1b[?25h\r", .{});
     }
 };
