@@ -73,5 +73,5 @@ pub fn zagInit(args: SetUp, writer: anytype) !void {
         },
     }
     path.removeUntilSep(); // This is now the projects dir
-    try writer.print("Successfully created project in: {s}", .{path.value()});
+    try writer.print("Successfully created project in: {s}\n", .{path.value()});
 }
