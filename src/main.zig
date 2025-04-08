@@ -13,7 +13,6 @@ const timer = @import("timer.zig").timer;
 const errorHandler = @import("helpers.zig").errorHandler;
 
 pub fn main() !void {
-
     //Setup allocator
     const allocator = std.heap.page_allocator;
 
@@ -114,7 +113,7 @@ pub fn main() !void {
         .h => {
             switch (args.option) {
                 .default => {
-                    try console_writer.print("No such option:\n\n", .{});
+                    try console_writer.print("\nNo such option:\n\n", .{});
                     try console_writer.print(str.help, .{});
                 },
                 .init, .initexe => {
@@ -122,6 +121,9 @@ pub fn main() !void {
                 },
                 .initlib => {
                     try console_writer.print(str.help_init, .{ "initlib", "library" });
+                },
+                .time => {
+                    try console_writer.print(str.help_time, .{});
                 },
                 else => {
                     unreachable;

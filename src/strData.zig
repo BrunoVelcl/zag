@@ -122,3 +122,14 @@ pub const help_init =
     \\  - If a name is provided, a new directory with that name is created, and the project is set up inside it.
     \\
 ; //Provide the tool teh user requested and if its a exe or lib
+
+pub const help_time =
+    \\Usage: zag time [options] <program to test> [program's options]
+    \\
+    \\Measures a program's execution speed. Note that it doesn't stop timing on child program "pause" events.
+    \\Only relevant measurements can be done on programs that execute without user input.
+    \\
+    \\Options:
+    \\  -i n   Set the number of times (n) you want to test the program.
+    \\  -q     "quiet" - Prevents the child program from outputting to the console.
+;
