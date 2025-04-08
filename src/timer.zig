@@ -101,9 +101,9 @@ pub fn timeConverter(time: f64) struct { time: f64, flag: u2 } {
     const mn_conv: f64 = 60;
     if (time < 1) {
         return .{ .time = time * ms_conv, .flag = 0b00 };
-    } else if (time > mn_conv) {
-        return .{ .time = time / mn_conv, .flag = 0b01 };
-    } else return .{ .time = time, .flag = 0b10 };
+    } else if (time < mn_conv) {
+        return .{ .time = time, .flag = 0b01 };
+    } else return .{ .time = time / mn_conv, .flag = 0b10 };
 }
 
 pub fn bytesToMB(bytes: usize) f64 {
