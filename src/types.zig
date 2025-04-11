@@ -2,7 +2,7 @@ const std = @import("std");
 const win = std.os.windows;
 
 //Flags for selecting options
-pub const opt_flags = enum { initlib, initexe, init, time, default, iter, quiet, dir, h, i, q, hex };
+pub const opt_flags = enum { initlib, initexe, init, time, default, iter, quiet, dir, h, i, q, hex, word };
 
 //Data struct
 pub const SetUp = struct {

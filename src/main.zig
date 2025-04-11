@@ -30,7 +30,17 @@ pub fn main() !void {
 
     //Comptime hashmap for argv parsing
     var options_hash = std.StaticStringMap(opt_flags).initComptime(
-        .{ .{ "initlib", .initlib }, .{ "initexe", .initexe }, .{ "init", .init }, .{ "time", .time }, .{ "timer", .time }, .{ "-h", .h }, .{ "hex", .hex } },
+        .{
+            .{ "initlib", .initlib },
+            .{ "initexe", .initexe },
+            .{ "init", .init },
+            .{ "time", .time },
+            .{ "timer", .time },
+            .{ "-h", .h },
+            .{ "hex", .hex },
+            .{ "-w", .word },
+            .{ "-word", .word },
+        },
     );
 
     var timer_hash = std.StaticStringMap(opt_flags).initComptime(.{
@@ -81,6 +91,7 @@ pub fn main() !void {
             },
             .hex => {
                 args.module_name = hashed_arg;
+                args.option = options_hash.get(argv.next() orelse "default") orelse .default;
             },
             .h => {
                 args.module_name = hashed_arg;
@@ -109,7 +120,7 @@ pub fn main() !void {
             };
         },
         .hex => {
-            try hexRead(allocator, console_writer);
+            try hexRead(args, allocator, console_writer);
         },
         .h => {
             switch (args.option) {
