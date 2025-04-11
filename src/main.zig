@@ -74,7 +74,6 @@ pub fn main() !void {
                             args.quiet = .q;
                         },
                         .default => {
-                            args.project_name = time_arg;
                             args.utf16 = tb.gatherArgvToUTF16(&argv, allocator, time_arg) catch |err| {
                                 try errorHandler(err, console_writer);
                                 return;
