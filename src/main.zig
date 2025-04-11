@@ -10,6 +10,7 @@ const RuntimeError = @import("helpers.zig").RuntimeError;
 
 const zagInit = @import("zagInit.zig").zagInit;
 const timer = @import("timer.zig").timer;
+const hexRead = @import("hexread.zig").hexRead;
 const errorHandler = @import("helpers.zig").errorHandler;
 
 pub fn main() !void {
@@ -29,14 +30,7 @@ pub fn main() !void {
 
     //Comptime hashmap for argv parsing
     var options_hash = std.StaticStringMap(opt_flags).initComptime(
-        .{
-            .{ "initlib", .initlib },
-            .{ "initexe", .initexe },
-            .{ "init", .init },
-            .{ "time", .time },
-            .{ "timer", .time },
-            .{ "-h", .h },
-        },
+        .{ .{ "initlib", .initlib }, .{ "initexe", .initexe }, .{ "init", .init }, .{ "time", .time }, .{ "timer", .time }, .{ "-h", .h }, .{ "hex", .hex } },
     );
 
     var timer_hash = std.StaticStringMap(opt_flags).initComptime(.{
@@ -85,6 +79,9 @@ pub fn main() !void {
                     }
                 }
             },
+            .hex => {
+                args.module_name = hashed_arg;
+            },
             .h => {
                 args.module_name = hashed_arg;
                 args.option = options_hash.get(argv.next() orelse "default") orelse .default;
@@ -110,6 +107,9 @@ pub fn main() !void {
                 try errorHandler(err, console_writer);
                 return;
             };
+        },
+        .hex => {
+            try hexRead(allocator, console_writer);
         },
         .h => {
             switch (args.option) {
