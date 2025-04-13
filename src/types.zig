@@ -8,7 +8,6 @@ pub const opt_flags = enum { initlib, initexe, init, time, default, iter, quiet,
 pub const SetUp = struct {
     module_name: opt_flags = .default,
     option: opt_flags = .default,
-    dir_path: []const u8 = undefined,
     project_name: []const u8 = "",
     utf16: []u16 = undefined,
     iter: usize = 1,

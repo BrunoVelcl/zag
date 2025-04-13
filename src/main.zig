@@ -51,7 +51,7 @@ pub fn main() !void {
 
     //Argv porccessing
     //Extract path and tool(which operation to perform)
-    args.dir_path = argv.next() orelse unreachable;
+    _ = argv.next() orelse unreachable; //Discard the console provided path, extract cwd when needed.
 
     //Extract options
     while (argv.next()) |arg| {
@@ -123,6 +123,7 @@ pub fn main() !void {
             },
         }
     }
+
     switch (args.module_name) {
         .init, .initexe, .initlib => {
             zagInit(args, console_writer) catch |err| {

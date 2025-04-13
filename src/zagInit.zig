@@ -8,15 +8,14 @@ const SetUp = @import("types.zig").SetUp;
 const opt_flags = @import("types.zig").opt_flags;
 
 pub fn zagInit(args: SetUp, writer: anytype) !void {
-    //Get correct root and src dir and create them
+    //Get cwd and set it up in PathWriter struct
     var path = tb.PathWritter{};
+    _ = try win.GetCurrentDirectory(path.buffer[0..]);
+    path.findLen();
 
-    path.write(args.dir_path) catch unreachable;
-    path.removeUntilSep(); //Remove the filename from our path
     const project_name = if (args.project_name.len != 0) args.project_name else path.returnUntilSep();
     path.write(project_name) catch unreachable;
     try std.fs.makeDirAbsolute(path.value());
-
     //Create flags for file openings
     const create_flags = std.fs.File.CreateFlags{ .exclusive = true, .truncate = true };
     //Build.zig logic for exe and lib
@@ -72,6 +71,7 @@ pub fn zagInit(args: SetUp, writer: anytype) !void {
             unreachable;
         },
     }
+
     path.removeUntilSep(); // This is now the projects dir
     try writer.print("Successfully created project in: {s}\n", .{path.value()});
 }
