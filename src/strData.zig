@@ -146,7 +146,7 @@ pub const help_hex =
     \\     values currently displayed in your console window and replace them in place.
     \\
     \\Options:
-    \\  -w      Use this option to decipher 16-bit values (e.g., "4865 6c6c 6f20 576f 726c 6421").
+    \\  -w      Use this option to decipher 16-bit clusters (e.g., "4865 6c6c 6f20 576f 726c 6421").
     \\          By default, the program deciphers 8-bit clusters (e.g., "48 65 6c 6c 6f 20 57 6f 72 6c 64 21").
 ;
 pub const help_int =

@@ -67,6 +67,7 @@ pub fn hexRead(args: SetUp, allocator: std.mem.Allocator, writer: anytype) !void
                         buffer[j] = converted;
                         j += 1;
                     }
+                    i += 2; //If we hit a value the next possible value is 3 bytes away
                 }
             }
             if (input_switch) {
@@ -76,7 +77,7 @@ pub fn hexRead(args: SetUp, allocator: std.mem.Allocator, writer: anytype) !void
             }
         },
         .word => {
-            //Word wide scan alorithm (eg. 4865 6c6c 6f20 576f 726c 6421 2054 6869 7320 6973 206d 7920 6865 7864 756d 7020 7265 6164 6572 2074 6f6f 6c2e)
+            //Mr.Word wide scan alorithm (eg. 4865 6c6c 6f20 576f 726c 6421 2054 6869 7320 6973 206d 7920 6865 7864 756d 7020 7265 6164 6572 2074 6f6f 6c2e)
             var compress = try allocator.alloc(u8, buffer.len);
             defer allocator.free(compress);
             while (i <= buffer.len - 6) : (i += 1) {
@@ -88,6 +89,7 @@ pub fn hexRead(args: SetUp, allocator: std.mem.Allocator, writer: anytype) !void
                     converted = (try asciiToInt(buffer[i + 2]) << 4) | try asciiToInt(buffer[i + 3]);
                     compress[j + 1] = converted;
                     j += 2;
+                    i += 4; //If we hit a value the next possible value is 5 bytes away
                 }
             }
             try writer.print("{s}\n", .{compress[0..j]});
