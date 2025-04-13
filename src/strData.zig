@@ -107,6 +107,8 @@ pub const help =
     \\  init, initexe   Set up an empty Zig template for building executables.
     \\  initlib         Set up an empty Zig template for building libraries.
     \\  time            Measure the execution time of a program.
+    \\  hex             Decyphers hexadecimal values into ascii characters
+    \\  int             Decyphers integers into ascii characters
     \\
     \\Use 'zag -h <tool>' for tool-specific help.
     \\
@@ -132,4 +134,27 @@ pub const help_time =
     \\Options:
     \\  -i n   Set the number of times (n) you want to test the program.
     \\  -q     "quiet" - Prevents the child program from outputting to the console.
+;
+
+pub const help_hex =
+    \\Usage: zag hex [options] "Optional input"
+    \\
+    \\Modes:
+    \\  1. Input mode: If you provide hexadecimal values inside quotation marks,
+    \\     the program will decipher them and combine the resulting characters.
+    \\  2. Console mode: Without direct input, the program will decipher the hex 
+    \\     values currently displayed in your console window and replace them in place.
+    \\
+    \\Options:
+    \\  -w      Use this option to decipher 16-bit values (e.g., "4865 6c6c 6f20 576f 726c 6421").
+    \\          By default, the program deciphers 8-bit clusters (e.g., "48 65 6c 6c 6f 20 57 6f 72 6c 64 21").
+;
+pub const help_int =
+    \\Usage: zag int [options] "Optional input"
+    \\
+    \\Modes:
+    \\  1. Input mode: If you provide integer values inside quotation marks,
+    \\     the program will decipher them and combine the resulting characters.
+    \\  2. Console mode: Without direct input, the program will decipher the integer
+    \\     values from your console window and replace them in place.
 ;

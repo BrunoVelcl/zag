@@ -40,6 +40,7 @@ pub fn main() !void {
             .{ "hex", .hex },
             .{ "-w", .word },
             .{ "-word", .word },
+            .{ "int", .int },
         },
     );
 
@@ -91,7 +92,27 @@ pub fn main() !void {
             },
             .hex => {
                 args.module_name = hashed_arg;
-                args.option = options_hash.get(argv.next() orelse "default") orelse .default;
+                while (argv.next()) |hex_options| {
+                    const hex_options_hash = options_hash.get(hex_options) orelse .default;
+                    switch (hex_options_hash) {
+                        .word => {
+                            args.option = hex_options_hash;
+                        },
+                        .default => {
+                            args.project_name = hex_options;
+                        },
+                        else => {
+                            unreachable;
+                        },
+                    }
+                }
+            },
+            .int => {
+                args.module_name = .hex;
+                args.option = .int;
+                if (argv.next()) |string| {
+                    args.project_name = string;
+                }
             },
             .h => {
                 args.module_name = hashed_arg;
@@ -136,6 +157,12 @@ pub fn main() !void {
                 },
                 .time => {
                     try console_writer.print(str.help_time, .{});
+                },
+                .hex => {
+                    try console_writer.print(str.help_hex, .{});
+                },
+                .int => {
+                    try console_writer.print(str.help_int, .{});
                 },
                 else => {
                     unreachable;
